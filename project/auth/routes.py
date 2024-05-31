@@ -8,19 +8,21 @@ from ..models.user import User, db
 from . import auth
 
 headers = {
-    "Content-Type":'application/json'
+    "Content-Type": 'application/json'
 }
+
 
 @auth.route('/signup')
 def signup():
     return render_template('auth/signup.html')
+
 
 @auth.route('/signup', methods=['POST'])
 def signup_post():
     email = request.form.get('email')
     name = request.form.get('name')
     password = request.form.get('password')
-    
+
     response = requests.put(f"{API_URL}/users",
                             json={
                                 "email": email,
@@ -28,35 +30,43 @@ def signup_post():
                                 "password": password
                             },
                             headers=headers)    
-    
+
     if response.status_code == 400:
         error = response.json().get('error')
         flash(error)
         return redirect(url_for('auth.signup'))
-        
-    
+
     return redirect(url_for('auth.login'))
+
 
 @auth.route('/login')
 def login():
     return render_template('auth/login.html')
 
+
 @auth.route('/login', methods=['POST'])
 def login_post():
     email = request.form.get('email')    
     password = request.form.get('password')    
-    remember = request.form.get('remember')
-    
+    remember = True if request.form.get('remember') else False
+
     # is user exists
-    user = User.query.filter_by(email=email).first()
-    check_password = check_password_hash(user.password, password)
-    if user and check_password:
-        login_user(user, remember=remember)
-        return redirect(url_for('main.profile'))
-        
-    else:
+    response = requests.post(f"{API_URL}/users",
+                            json={
+                                "email": email,
+                                "password": password
+                            },
+                            headers=headers)  
+
+    if response.status_code != 201:
         flash(" Please check your login details and try again")
         return render_template('auth/login.html')
+    else:
+        data = response.json()
+        user = User.from_dict(data)
+        login_user(user, remember=remember)
+        return redirect(url_for('main.profile'))
+
 
 @auth.route('/logout')
 @login_required
